@@ -97,6 +97,11 @@ extern "C"
 		return new ChromiumBrowser((WIN_HANDLE)formHandle, defaultUrl);
 	}
 
+	DLLINTERFACE ChromiumDLL::ChromiumRendererI* CEF_NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height)
+	{
+		return new ChromiumRenderer((WIN_HANDLE)formHandle, defaultUrl, width, height);
+	}
+	
 	DLLINTERFACE void CEF_SetLogHandler(ChromiumDLL::LogMessageHandlerFn logFn)
 	{
 		g_pLogHandler = logFn;
@@ -217,7 +222,16 @@ ChromiumBrowser::ChromiumBrowser(WIN_HANDLE handle, const char* defaultUrl)
 	m_pBrowser = NULL;
 
 	m_rEventHandler = (CefClient*)new ChromiumBrowserEvents(this);
-	init(defaultUrl);
+	init(defaultUrl, false);
+}
+
+ChromiumBrowser::ChromiumBrowser(WIN_HANDLE handle)
+{
+	m_iLastTask = 0;
+	m_hFormHandle = handle;
+	m_pBrowser = NULL;
+
+	m_rEventHandler = (CefClient*)new ChromiumBrowserEvents(this);
 }
 
 ChromiumBrowser::~ChromiumBrowser()
@@ -248,14 +262,23 @@ CefBrowserSettings ChromiumBrowser::getBrowserDefaults()
 }
 
 #ifdef OS_WIN
-void ChromiumBrowser::init(const char *defaultUrl)
+void ChromiumBrowser::init(const char *defaultUrl, bool offScreen, int width, int height)
 {
-	CefWindowInfo winInfo;
+	if (width <= 0)
+		width = 500;
 
-	winInfo.m_dwStyle =  WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP;
-	winInfo.m_nHeight = 500;
-	winInfo.m_nWidth = 500;
+	if (height <= 0)
+		height = 500;
+
+	CefWindowInfo winInfo;
 	winInfo.m_hWndParent = m_hFormHandle;
+	winInfo.m_nHeight = width;
+	winInfo.m_nWidth = height;
+
+	if (offScreen)
+		winInfo.m_bWindowRenderingDisabled = true;
+	else
+		winInfo.m_dwStyle =  WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP;
 
 	const char* name = "DesuraCEFBrowser";
 	cef_string_copy(name, strlen(name), &winInfo.m_windowName);
@@ -550,4 +573,55 @@ ChromiumDLL::JavaScriptContextI* ChromiumBrowser::getJSContext()
 void ChromiumBrowser::setContext(CefRefPtr<CefV8Context> context)
 {
 	m_rContext = context;
+}
+
+
+
+
+ChromiumRenderer::ChromiumRenderer(WIN_HANDLE handle, const char* defaultUrl, int width, int height)
+	: ChromiumBrowser(handle)
+{
+	init(defaultUrl, true, width, height);
+}
+
+void ChromiumRenderer::setWindowSize(int width, int height)
+{
+	if (m_pBrowser)
+		m_pBrowser->SetSize(PET_VIEW, width, height);
+}
+
+void ChromiumRenderer::renderToBuffer(void* pBuffer, unsigned int width, unsigned int height)
+{
+	if (m_pBrowser)
+		m_pBrowser->GetImage(PET_VIEW, width, height, pBuffer);
+}
+
+void ChromiumRenderer::onMouseClick(int x, int y, ChromiumDLL::MouseButtonType type, bool mouseUp, int clickCount)
+{
+	if (m_pBrowser)
+		m_pBrowser->SendMouseClickEvent(x, y, (CefBrowser::MouseButtonType)type, mouseUp, clickCount);
+}
+
+void ChromiumRenderer::onMouseMove(int x, int y, bool mouseLeave)
+{
+	if (m_pBrowser)
+		m_pBrowser->SendMouseMoveEvent(x, y, mouseLeave);
+}
+
+void ChromiumRenderer::onKeyPress(ChromiumDLL::KeyType type, int key, int modifiers, bool sysChar, bool imeChar)
+{
+	if (m_pBrowser)
+		m_pBrowser->SendKeyEvent((CefBrowser::KeyType)type, key, modifiers, sysChar, imeChar);
+}
+
+void ChromiumRenderer::onFocus(bool setFocus)
+{
+	if (m_pBrowser)
+		m_pBrowser->SendFocusEvent(setFocus);
+}
+
+void ChromiumRenderer::onCaptureLost()
+{
+	if (m_pBrowser)
+		m_pBrowser->SendCaptureLostEvent();
 }

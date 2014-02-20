@@ -31,9 +31,11 @@ class ChromiumBrowser : public ChromiumDLL::ChromiumBrowserI
 {
 public:
 	ChromiumBrowser(WIN_HANDLE handle, const char* defaultUrl);
+	ChromiumBrowser(WIN_HANDLE handle);
+
 	~ChromiumBrowser();
 
-	void init(const char *defaultUrl);
+	void init(const char *defaultUrl, bool offScreen = false, int width = -1, int height = -1);
 	virtual void onFocus();
 
 #ifdef OS_WIN
@@ -87,6 +89,9 @@ public:
 
 	virtual ChromiumDLL::JavaScriptContextI* getJSContext();
 
+
+
+
 	void setBrowser(CefBrowser* browser);
 	
 	void setContext(CefRefPtr<CefV8Context> context);
@@ -94,7 +99,6 @@ public:
 protected:
 	CefBrowserSettings getBrowserDefaults();
 
-private:
 	CefRefPtr<CefV8Context> m_rContext;
 	CefRefPtr<CefClient> m_rEventHandler;
 	CefBrowser* m_pBrowser;
@@ -104,6 +108,30 @@ private:
 	std::string m_szBuffer;
 	int m_iLastTask;
 };
+
+
+class ChromiumRenderer : public ChromiumBrowser, public ChromiumDLL::ChromiumRendererI
+{
+public:
+	ChromiumRenderer(WIN_HANDLE handle, const char* defaultUrl, int width, int height);
+
+	virtual void setWindowSize(int width, int height);
+
+	virtual void renderToBuffer(void* pBuffer, unsigned int width, unsigned int height);
+
+	virtual void onMouseClick(int x, int y, ChromiumDLL::MouseButtonType type, bool mouseUp, int clickCount);
+	virtual void onMouseMove(int x, int y, bool mouseLeave);
+	virtual void onKeyPress(ChromiumDLL::KeyType type, int key, int modifiers, bool sysChar, bool imeChar);
+
+	virtual void onFocus(bool setFocus);
+	virtual void onCaptureLost();
+
+	virtual ChromiumBrowserI* getBrowser()
+	{
+		return this;
+	}
+};
+
 
 class TaskWrapper : public CefRefCountWrapper<CefTask>
 {

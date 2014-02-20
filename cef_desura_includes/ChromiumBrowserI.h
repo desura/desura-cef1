@@ -723,6 +723,20 @@ namespace ChromiumDLL
 		virtual void HandleJSBinding(JavaScriptObjectI* jsObject, JavaScriptFactoryI* factory)=0;
 	};
 
+	enum KeyType
+	{
+	  KT_KEYUP    = 0,
+	  KT_KEYDOWN,
+	  KT_CHAR,
+	};
+
+	enum MouseButtonType
+	{
+	  MBT_LEFT   = 0,
+	  MBT_MIDDLE,
+	  MBT_RIGHT,
+	};
+
 	class ChromiumBrowserI
 	{
 	public:
@@ -774,6 +788,23 @@ namespace ChromiumDLL
 		virtual ChromiumDLL::JavaScriptContextI* getJSContext()=0;
 	};
 
+	class ChromiumRendererI
+	{
+	public:
+		virtual void setWindowSize(int width, int height)=0;
+
+		virtual void renderToBuffer(void* pBuffer, unsigned int width, unsigned int height)=0;
+
+		virtual void onMouseClick(int x, int y, MouseButtonType type, bool mouseUp, int clickCount)=0;
+		virtual void onMouseMove(int x, int y, bool mouseLeave)=0;
+		virtual void onKeyPress(KeyType type, int key, int modifiers, bool sysChar, bool imeChar)=0;
+
+		virtual void onFocus(bool setFocus)=0;
+		virtual void onCaptureLost()=0;
+
+		virtual ChromiumBrowserI* getBrowser()=0;
+	};
+
 
 	typedef bool (*LogMessageHandlerFn)(int severity, const char* str);
 
@@ -803,6 +834,9 @@ extern "C"
 
 	// Form handle as HWND
 	DLLINTERFACE ChromiumDLL::ChromiumBrowserI* CEF_NewChromiumBrowser(int* formHandle, const char *name,  const char* defaultUrl);
+
+	//Creates a offscreen browser renderer
+	DLLINTERFACE ChromiumDLL::ChromiumRendererI* CEF_NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height);
 
 	// Return true to handle msg
 	DLLINTERFACE void CEF_SetLogHandler(ChromiumDLL::LogMessageHandlerFn logFn);
