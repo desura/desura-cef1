@@ -33,6 +33,10 @@
 #include "webkit/plugins/npapi/webplugin_impl.h"
 #include "webkit/glue/webkit_glue.h"
 
+#if defined(OS_WIN)
+#include "third_party/WebKit/Source/WebKit/chromium/public/win/WebInputEventFactory.h"
+#endif
+
 using WebKit::WebDocument;
 using WebKit::WebFrame;
 using WebKit::WebHTTPBody;
@@ -519,6 +523,46 @@ CefString CefBrowserImpl::GetSource(CefRefPtr<CefFrame> frame)
   return CefString();
 }
 
+void CefBrowserImpl::ZoomOut(CefRefPtr<CefFrame> frame)
+{
+  frame->AddRef();
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_HandleAction, MENU_ID_ZOOM_OUT, frame.get()));
+}
+
+void CefBrowserImpl::ZoomIn(CefRefPtr<CefFrame> frame)
+{
+  frame->AddRef();
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_HandleAction, MENU_ID_ZOOM_IN, frame.get()));
+}
+
+void CefBrowserImpl::ZoomNormal(CefRefPtr<CefFrame> frame)
+{
+  frame->AddRef();
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_HandleAction, MENU_ID_ZOOM_NORMAL, frame.get()));
+}
+ 
+ void CefBrowserImpl::CustomContextMenuAction(int action)
+ {
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_CustomContextMenuAction, action));
+ }
+ 
+ void CefBrowserImpl::InspectElement(int x, int y)
+ {
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_InspectElement, x, y));
+ }
+
+ void CefBrowserImpl::MouseWheelEvent(int x, int y, int delta, unsigned int flags)
+ {
+  CefThread::PostTask(CefThread::UI, FROM_HERE, NewRunnableMethod(this,
+      &CefBrowserImpl::UIT_MouseWheelEvent, x, y, delta, flags));
+ }
+
+
 CefString CefBrowserImpl::GetText(CefRefPtr<CefFrame> frame)
 {
   // Verify that this method is being called on the UI thread.
@@ -666,6 +710,9 @@ WebFrame* CefBrowserImpl::UIT_GetMainWebFrame()
 
 WebFrame* CefBrowserImpl::UIT_GetWebFrame(CefRefPtr<CefFrame> frame)
 {
+  if (!frame)
+  	return NULL;
+  	
   REQUIRE_UIT();
 
   WebView* view = UIT_GetWebView();
@@ -719,8 +766,20 @@ void CefBrowserImpl::UIT_DestroyBrowser()
     dev_tools_agent_.reset();
   }
 
+  //this happens when webviewhost gets reset on linux
+#ifndef OS_LINUX
   // Clean up anything associated with the WebViewHost widget.
-  UIT_GetWebViewHost()->webwidget()->close();
+  WebViewHost* webViewHost = UIT_GetWebViewHost();
+  
+  if (webViewHost)
+  {
+    WebKit::WebWidget* webWidget = webViewHost->webwidget();
+    
+    if (webWidget)
+      webWidget->close();
+  }
+#endif
+
   webviewhost_.reset();
 
   // Remove the reference added in UIT_CreateBrowser().
@@ -1155,14 +1214,27 @@ void CefBrowserImpl::UIT_Show(WebKit::WebNavigationPolicy policy)
   delegate_->show(policy);
 }
 
-void CefBrowserImpl::UIT_HandleActionView(cef_handler_menuid_t menuId)
+bool CefBrowserImpl::UIT_HandleActionView(cef_handler_menuid_t menuId)
 {
   return UIT_HandleAction(menuId, NULL);
 }
 
-void CefBrowserImpl::UIT_HandleAction(cef_handler_menuid_t menuId,
+void CefBrowserImpl::UIT_MouseWheelEvent(int x, int y, int delta, unsigned int flags)
+{
+#if defined(OS_WIN)
+  if (UIT_GetWebViewHost())
+  {
+    const WebKit::WebMouseWheelEvent& event = WebKit::WebInputEventFactory::mouseWheelEvent(UIT_GetWebViewWndHandle(), WM_MOUSEWHEEL, MAKEWPARAM(flags, delta), MAKELPARAM(x, y));
+	UIT_GetWebViewHost()->webwidget()->handleInputEvent(event); 
+  }
+#endif
+}
+
+bool CefBrowserImpl::UIT_HandleAction(CefMenuHandler::MenuId menuId,
                                       CefRefPtr<CefFrame> frame)
 {
+  bool res = true;
+
   REQUIRE_UIT();
 
   WebFrame* web_frame = NULL;
@@ -1223,7 +1295,23 @@ void CefBrowserImpl::UIT_HandleAction(cef_handler_menuid_t menuId,
       if(web_frame)
         UIT_ViewDocumentString(web_frame);
       break;
+    case MENU_ID_ZOOM_IN:
+      if(web_frame)
+        web_frame->view()->setZoomLevel(false, web_frame->view()->zoomLevel()+1);
+      break;
+    case MENU_ID_ZOOM_OUT:
+      if(web_frame)
+        web_frame->view()->setZoomLevel(false, web_frame->view()->zoomLevel()-1);
+      break;
+    case MENU_ID_ZOOM_NORMAL:
+      if(web_frame)
+        web_frame->view()->setZoomLevel(false, 0);
+      break;
+	default:
+		res = false;
   }
+
+  return res;
 }
 
 void CefBrowserImpl::UIT_Find(int identifier, const CefString& search_text,
@@ -1557,6 +1645,19 @@ void CefBrowserImpl::UIT_DestroyDevToolsClient()
     dev_tools_client_.reset();
   }
 }
+
+void CefBrowserImpl::UIT_CustomContextMenuAction(int action)
+{
+  if (UIT_GetWebViewHost() && UIT_GetWebViewHost()->webview())
+    UIT_GetWebViewHost()->webview()->performCustomContextMenuAction(action);
+}
+
+ void CefBrowserImpl::UIT_InspectElement(int x, int y)
+ {
+  if (UIT_GetWebViewHost() && UIT_GetWebViewHost()->webview())
+	  UIT_GetWebViewHost()->webview()->inspectElementAt(WebKit::WebPoint(x,y));
+ }
+
 
 
 // CefFrameImpl

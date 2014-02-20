@@ -35,10 +35,10 @@
 // If you change the default you MUST recompile all of CEF.
 
 // Build with the UTF8 string type as default.
-//#define CEF_STRING_TYPE_UTF8 1
+#define CEF_STRING_TYPE_UTF8 1
 
 // Build with the UTF16 string type as default.
-#define CEF_STRING_TYPE_UTF16 1
+//#define CEF_STRING_TYPE_UTF16 1
 
 // Build with the wide string type as default.
 //#define CEF_STRING_TYPE_WIDE 1

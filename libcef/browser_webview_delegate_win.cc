@@ -677,3 +677,18 @@ bool BrowserWebViewDelegate::ShowFileChooser(std::vector<FilePath>& file_names,
   return result;
 }
 
+bool BrowserWebViewDelegate::WndProc(UINT message, WPARAM wparam, LPARAM lparam)
+{
+  CefRefPtr<CefClient> client = browser_->GetClient();
+
+  if (!client.get())
+    return false;
+
+  CefRefPtr<CefWinEventHandler> win_handler = client->GetWinEventHandler();
+  
+  if (!win_handler.get())
+    return false;
+
+  win_handler->OnWndProc(browser_, message, wparam, lparam);
+  return false;
+}

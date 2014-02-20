@@ -97,6 +97,9 @@ class BrowserWebViewDelegate : public WebKit::WebViewClient,
       OVERRIDE;
   virtual bool runModalBeforeUnloadDialog(
       WebKit::WebFrame* frame, const WebKit::WebString& message) OVERRIDE;
+#ifdef OS_LINUX
+  void handleContextMenu(int selected_id);
+#endif
   virtual void showContextMenu(
       WebKit::WebFrame* frame, const WebKit::WebContextMenuData& data) OVERRIDE;
   virtual void setStatusText(const WebKit::WebString& text) OVERRIDE;
@@ -250,6 +253,11 @@ class BrowserWebViewDelegate : public WebKit::WebViewClient,
   }
 
   CefBrowserImpl* GetBrowser() { return browser_; }
+
+#if defined(OS_WIN)
+  bool WndProc(UINT message, WPARAM wparam, LPARAM lparam);
+#endif
+
 
 #if defined(OS_MACOSX)
   // Called after the external popup menu has been dismissed.

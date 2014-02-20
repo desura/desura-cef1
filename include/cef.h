@@ -119,6 +119,10 @@ void CefDoMessageLoopWork();
 /*--cef()--*/
 void CefRunMessageLoop();
 
+// Registers chrome flash plugin
+/*--cef()--*/ 
+void CefRegisterFlashPlugin(const std::string& dllName);
+
 ///
 // Register a new V8 extension with the specified JavaScript extension code and
 // handler. Functions implemented by the handler are prototyped using the
@@ -433,21 +437,50 @@ public:
   ///
   // Atomic reference increment.
   ///
-  int AddRef() {
+  virtual int AddRef() {
     return CefAtomicIncrement(&refct_);
   }
 
   ///
   // Atomic reference decrement. Delete the object when no references remain.
   ///
-  int Release() {
+  virtual int Release() {
     return CefAtomicDecrement(&refct_);
   }
 
   ///
   // Return the current number of references.
   ///
-  int GetRefCt() { return refct_; }
+  virtual int GetRefCt() { return refct_; }
+
+private:
+  long refct_;
+};
+
+template <typename T>
+class CefRefCountWrapper : public T
+{
+public:
+  CefRefCountWrapper() : refct_(0) {}
+
+  ///
+  // Atomic reference increment.
+  ///
+  virtual int AddRef() {
+    return CefAtomicIncrement(&refct_);
+  }
+
+  ///
+  // Atomic reference decrement. Delete the object when no references remain.
+  ///
+  virtual int Release() {
+    return CefAtomicDecrement(&refct_);
+  }
+
+  ///
+  // Return the current number of references.
+  ///
+  virtual int GetRefCt() { return refct_; }
 
 private:
   long refct_;
@@ -704,6 +737,16 @@ public:
   /*--cef()--*/
   virtual void SetZoomLevel(double zoomLevel) =0;
 
+#ifndef IGNORE_DESURA
+  // Inspect a element. Parse -1, -1 for any
+  /*--cef()--*/
+  virtual void InspectElement(int x, int y) =0; 
+
+  // Handle mouse rotation
+  /*--cef()--*/
+  virtual void MouseWheelEvent(int x, int y, int delta, unsigned int flags) =0;
+#endif
+
   ///
   // Open developer tools in its own window.
   ///
@@ -953,6 +996,20 @@ public:
   ///
   /*--cef()--*/
   virtual CefRefPtr<CefBrowser> GetBrowser() =0;
+
+#ifndef IGNORE_DESURA
+  // zoom in
+  /*--cef()--*/
+  virtual void ZoomIn() =0;
+
+  // Zoom out
+  /*--cef()--*/
+  virtual void ZoomOut() =0;
+
+  // Set zoom to default
+  /*--cef()--*/
+  virtual void ZoomNormal() =0;
+#endif
 
   ///
   // Visit the DOM document.
@@ -1307,6 +1364,7 @@ class CefMenuHandler : public virtual CefBase
 public:
   typedef cef_handler_menuid_t MenuId;
   typedef cef_handler_menuinfo_t MenuInfo;
+  typedef cef_handler_menuitem_t MenuItem;
 
   ///
   // Called before a context menu is displayed. Return false to display the
@@ -1584,6 +1642,20 @@ public:
 
 
 ///
+// Implement this interface to handle window proc events. The methods of
+// this class will be called on the UI thread.
+///
+/*--cef(source=client)--*/
+class CefWinEventHandler : public virtual CefBase
+{
+public:
+  ///
+  /*--cef()--*/
+  virtual void OnWndProc(CefRefPtr<CefBrowser> browser, int message, int wparam, int lparam){}
+};
+
+
+///
 // Implement this interface to provide handler implementations.
 ///
 /*--cef(source=client)--*/
@@ -1667,6 +1739,12 @@ public:
   ///
   /*--cef()--*/
   virtual CefRefPtr<CefDragHandler> GetDragHandler() { return NULL; }
+
+  ///
+  // Return the handler for windows events.
+  ///
+  /*--cef()--*/
+  virtual CefRefPtr<CefWinEventHandler>	GetWinEventHandler() { return NULL; }
 };
 
 

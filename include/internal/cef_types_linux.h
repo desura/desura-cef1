@@ -59,6 +59,11 @@ typedef struct _cef_window_info_t
 {
   // Pointer for the parent GtkBox widget.
   cef_window_handle_t m_ParentWidget;
+
+  int m_x;
+  int m_y;
+  int m_nWidth;
+  int m_nHeight;
   
   // Pointer for the new browser widget.
   cef_window_handle_t m_Widget;

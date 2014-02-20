@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/rect.h"
 #include "webwidget_host.h"
 
 #if defined(TOOLKIT_USES_GTK)
@@ -27,18 +28,24 @@ class WebViewHost : public WebWidgetHost {
   // The new instance is deleted once the associated NativeView is destroyed.
   // The newly created window should be resized after it is created, using the
   // MoveWindow (or equivalent) function.
+#ifdef OS_WIN
   static WebViewHost* Create(gfx::NativeView parent_view,
-                             const gfx::Rect& rect,
-                             BrowserWebViewDelegate* delegate,
-                             PaintDelegate* paint_delegate,
-                             WebKit::WebDevToolsAgentClient* devtools_client,
-                             const WebPreferences& prefs);
-
-  virtual ~WebViewHost();
-
+                                 const gfx::Rect&,
+                                 BrowserWebViewDelegate* delegate,
+                                 PaintDelegate* paint_delegate,
+								 WebKit::WebDevToolsAgentClient* dev_tools_client,
+                                 const WebPreferences& prefs);
+#else                                 
+  static WebViewHost* Create(gfx::NativeView parent_view,
+	                             BrowserWebViewDelegate* delegate,
+	                             WebKit::WebDevToolsAgentClient* devtools_client,
+	                             const WebPreferences& prefs);
+#endif
   WebKit::WebView* webview() const;
 
 #if defined(TOOLKIT_USES_GTK)
+  ~WebViewHost();
+
   // Create a new plugin parent container for a given plugin XID.
   void CreatePluginContainer(gfx::PluginWindowHandle id);
 
@@ -50,22 +57,27 @@ class WebViewHost : public WebWidgetHost {
   }
 #elif defined(OS_MACOSX)
   void SetIsActive(bool active);
-  virtual void MouseEvent(NSEvent *);
-  virtual void SetFocus(bool enable);
+#endif
+
+#ifdef OS_WIN
+ ~WebViewHost();
 #endif
 
  protected:
-   WebViewHost();
-
-#if defined(OS_WIN)
+#ifdef OS_WIN
+  WebViewHost(BrowserWebViewDelegate* delegate);
   virtual bool WndProc(UINT message, WPARAM wparam, LPARAM lparam);
-  virtual void MouseEvent(UINT message, WPARAM wparam, LPARAM lparam);
+  void MouseEvent(UINT message, WPARAM wparam, LPARAM lparam);
 #endif
 
 #if defined(TOOLKIT_USES_GTK)
   // Helper class that creates and moves plugin containers.
   webkit::npapi::GtkPluginContainerManager plugin_container_manager_;
 #endif
+
+#ifdef OS_WIN
+  BrowserWebViewDelegate* delegate_;
+ #endif
 };
 
 #endif  // _WEBVIEW_HOST_H

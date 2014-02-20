@@ -17,13 +17,13 @@ using namespace WebKit;
 static const wchar_t kWindowClassName[] = L"WebViewHost";
 
 /*static*/
-WebViewHost* WebViewHost::Create(HWND parent_view,
+WebViewHost* WebViewHost::Create(gfx::NativeView parent_view,
                                  const gfx::Rect&,
                                  BrowserWebViewDelegate* delegate,
                                  PaintDelegate* paint_delegate,
                                  WebDevToolsAgentClient* dev_tools_client,
                                  const WebPreferences& prefs) {
-  WebViewHost* host = new WebViewHost();
+  WebViewHost* host = new WebViewHost(delegate);
 
   if (!paint_delegate) {
     static bool registered_class = false;
@@ -65,6 +65,11 @@ WebView* WebViewHost::webview() const {
 }
 
 bool WebViewHost::WndProc(UINT message, WPARAM wparam, LPARAM lparam) {
+
+  if (delegate_->WndProc(message, wparam, lparam)){
+    return false;
+  }
+
   switch (message) {
   case WM_SETFOCUS:
     // Set the current WebViewHost in case a drag action is started before mouse

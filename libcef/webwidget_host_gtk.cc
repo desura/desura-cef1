@@ -20,6 +20,11 @@
 #include "third_party/WebKit/Source/WebKit/chromium/public/WebScreenInfo.h"
 #include "third_party/WebKit/Source/WebKit/chromium/public/WebSize.h"
 
+#ifndef NDEBUG
+	#define PAUSE_DEBUGGER() asm("int $3")#else
+	#define PAUSE_DEBUGGER()
+#endif
+
 using WebKit::WebInputEventFactory;
 using WebKit::WebKeyboardEvent;
 using WebKit::WebMouseEvent;
@@ -64,8 +69,24 @@ class WebWidgetHostGtkWidget {
   // our GtkDrawingAreaContainer here, for the reasons mentioned above.
   static GtkWidget* CreateNewWidget(GtkWidget* parent_view,
                                     WebWidgetHost* host) {
+    if(!parent_view || !host)
+      return NULL;
+     
     GtkWidget* widget = gtk_fixed_new();
     gtk_fixed_set_has_window(GTK_FIXED(widget), true);
+    
+    GdkColor black, green;
+	gdk_color_parse("black", &black);
+	gdk_color_parse("green", &green);
+    
+#if defined(NDEBUG)
+    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &black);
+#else
+    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &green);
+#endif
+
+    // Allow the browser window to be resized freely.
+    gtk_widget_set_size_request(widget, 0, 0);
 
     gtk_box_pack_start(GTK_BOX(parent_view), widget, TRUE, TRUE, 0);
 
@@ -107,6 +128,72 @@ class WebWidgetHostGtkWidget {
 
     g_object_set_data(G_OBJECT(widget), kWebWidgetHostKey, host);
     return widget;
+    
+
+// the following is newer code from Chrome's implementation 
+// and requires some extras, including the two commented out
+// includes at the top. Should work though.    
+/*    GtkWidget* widget = gtk_preserve_window_new();
+    
+    GdkColor blackCol;
+	gdk_color_parse("black", &blackCol);
+	GdkColor greenCol;
+	gdk_color_parse("green", &greenCol);
+    
+#if defined(NDEBUG)
+    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &blackCol);
+#else
+    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &greenCol);
+#endif
+    // Allow the browser window to be resized freely.
+    gtk_widget_set_size_request(widget, 0, 0);
+
+    gtk_widget_add_events(widget, GDK_EXPOSURE_MASK |
+                                  GDK_POINTER_MOTION_MASK |
+                                  GDK_BUTTON_PRESS_MASK |
+                                  GDK_BUTTON_RELEASE_MASK |
+                                  GDK_KEY_PRESS_MASK |
+                                  GDK_KEY_RELEASE_MASK |
+                                  GDK_FOCUS_CHANGE_MASK |
+                                  GDK_ENTER_NOTIFY_MASK |
+                                  GDK_LEAVE_NOTIFY_MASK);
+    GTK_WIDGET_SET_FLAGS(widget, GTK_CAN_FOCUS);
+
+    g_signal_connect(widget, "size-request",
+                     G_CALLBACK(&HandleSizeRequest), host);
+    g_signal_connect(widget, "size-allocate",
+                     G_CALLBACK(&HandleSizeAllocate), host);
+    g_signal_connect(widget, "configure-event",
+                     G_CALLBACK(&HandleConfigure), host);
+    g_signal_connect(widget, "expose-event",
+                     G_CALLBACK(&HandleExpose), host);
+    g_signal_connect(widget, "destroy",
+                     G_CALLBACK(&HandleDestroy), host);
+    g_signal_connect(widget, "key-press-event",
+                     G_CALLBACK(&HandleKeyPress), host);
+    g_signal_connect(widget, "key-release-event",
+                     G_CALLBACK(&HandleKeyRelease), host);
+    g_signal_connect(widget, "focus",
+                     G_CALLBACK(&HandleFocus), host);
+    g_signal_connect(widget, "focus-in-event",
+                     G_CALLBACK(&HandleFocusIn), host);
+    g_signal_connect(widget, "focus-out-event",
+                     G_CALLBACK(&HandleFocusOut), host);
+    g_signal_connect(widget, "button-press-event",
+                     G_CALLBACK(&HandleButtonPress), host);
+    g_signal_connect(widget, "button-release-event",
+                     G_CALLBACK(&HandleButtonRelease), host);
+    g_signal_connect(widget, "motion-notify-event",
+                     G_CALLBACK(&HandleMotionNotify), host);
+
+    // Connect after so that we are called after the handler installed by the
+    // TabContentsView which handles zoom events.
+    g_signal_connect_after(widget, "scroll-event",
+                           G_CALLBACK(HandleScroll), host);
+
+    g_object_set_data(G_OBJECT(widget), kWebWidgetHostKey, host);
+
+    return widget;*/
   }
 
  private:
@@ -286,12 +373,35 @@ gfx::NativeView WebWidgetHost::CreateWidget(
 WebWidgetHost* WebWidgetHost::Create(GtkWidget* parent_view,
                                      WebWidgetClient* client,
                                      PaintDelegate* paint_delegate) {
+  if (!parent_view || !client)
+    return NULL;
+    
+  GtkWidget* popupwindow = gtk_window_new(GTK_WINDOW_POPUP);
+  GtkWidget* vbox = gtk_vbox_new(FALSE, 0);
+  
   WebWidgetHost* host = new WebWidgetHost();
-  host->view_ = CreateWidget(parent_view, host);
+
+  host->view_ = CreateWidget(vbox, host);
   host->webwidget_ = WebPopupMenu::create(client);
+  
+  gtk_container_add(GTK_CONTAINER(popupwindow), vbox);
+
   // We manage our own double buffering because we need to be able to update
   // the expose area in an ExposeEvent within the lifetime of the event handler.
   gtk_widget_set_double_buffered(GTK_WIDGET(host->view_), false);
+  
+  // Grab all input to the test shell and funnel it to the popup.
+  // The popup will detect if mouseclicks are outside its bounds and destroy
+  // itself if so. Clicks that are outside the test_shell window will destroy
+  // the popup by taking focus away from the main window.
+  gtk_grab_add(host->view_);
+
+	GdkGeometry geom;
+	geom.min_width = 1;
+	geom.min_height = 1;
+
+	gtk_window_set_geometry_hints(GTK_WINDOW(popupwindow), GTK_WIDGET(popupwindow),
+		   &geom, GDK_HINT_MIN_SIZE);
 
   return host;
 }
@@ -301,7 +411,7 @@ void WebWidgetHost::DidInvalidateRect(const gfx::Rect& damaged_rect) {
 
   UpdatePaintRect(damaged_rect);
 
-  if (!g_handling_expose) {
+  if (view_ && !g_handling_expose) {
     gtk_widget_queue_draw_area(GTK_WIDGET(view_), damaged_rect.x(),
         damaged_rect.y(), damaged_rect.width(), damaged_rect.height());
   }
@@ -344,12 +454,17 @@ WebWidgetHost::~WebWidgetHost() {
   g_object_set_data(G_OBJECT(view_), kWebWidgetHostKey, NULL);
   g_signal_handlers_disconnect_matched(view_,
       G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, this);
-  webwidget_->close();
+      
+  if (webwidget_)
+    webwidget_->close();
 }
 
 void WebWidgetHost::Resize(const gfx::Size &newsize) {
+  // The pixel buffer backing us is now the wrong size
+  canvas_.reset();
   logical_size_ = newsize;
-  SetSize(newsize.width(), newsize.height());
+  //SetSize(newsize.width(), newsize.height());
+  webwidget_->resize(newsize); // TEST?
 }
 
 void WebWidgetHost::Paint() {

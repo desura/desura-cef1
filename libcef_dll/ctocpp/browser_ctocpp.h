@@ -55,6 +55,10 @@ public:
   virtual void StopFinding(bool clearSelection) OVERRIDE;
   virtual double GetZoomLevel() OVERRIDE;
   virtual void SetZoomLevel(double zoomLevel) OVERRIDE;
+#ifndef IGNORE_DESURA
+  virtual void InspectElement(int x, int y) OVERRIDE; 
+  virtual void MouseWheelEvent(int x, int y, int delta, unsigned int flags) OVERRIDE;
+#endif
   virtual void ShowDevTools() OVERRIDE;
   virtual void CloseDevTools() OVERRIDE;
   virtual bool IsWindowRenderingDisabled() OVERRIDE;

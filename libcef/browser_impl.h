@@ -107,6 +107,14 @@ public:
   virtual void SendFocusEvent(bool setFocus) OVERRIDE;
   virtual void SendCaptureLostEvent() OVERRIDE;
 
+  virtual void CustomContextMenuAction(int action);
+  virtual void ZoomIn(CefRefPtr<CefFrame> frame);
+  virtual void ZoomOut(CefRefPtr<CefFrame> frame);
+  virtual void ZoomNormal(CefRefPtr<CefFrame> frame); 
+  virtual void InspectElement(int x, int y);
+  virtual void MouseWheelEvent(int x, int y, int delta, unsigned int flags);
+  
+  
   // Frame-related methods
   void Undo(CefRefPtr<CefFrame> frame);
   void Redo(CefRefPtr<CefFrame> frame);
@@ -274,8 +282,8 @@ public:
   void UIT_Show(WebKit::WebNavigationPolicy policy);
   
   // Handles most simple browser actions
-  void UIT_HandleActionView(cef_handler_menuid_t menuId);
-  void UIT_HandleAction(cef_handler_menuid_t menuId, CefRefPtr<CefFrame> frame);
+  bool UIT_HandleActionView(cef_handler_menuid_t menuId);
+  bool UIT_HandleAction(cef_handler_menuid_t menuId, CefRefPtr<CefFrame> frame);
 
   // Save the document HTML to a temporary file and open in the default viewing
   // application
@@ -302,6 +310,10 @@ public:
   void UIT_SetZoomLevel(double zoomLevel);
   void UIT_ShowDevTools();
   void UIT_CloseDevTools();
+
+  void UIT_CustomContextMenuAction(int action);
+  void UIT_InspectElement(int x, int y);
+  void UIT_MouseWheelEvent(int x, int y, int delta, unsigned int flags);
 
   void UIT_VisitDOM(CefRefPtr<CefFrame> frame,
                     CefRefPtr<CefDOMVisitor> visitor);
@@ -441,6 +453,9 @@ public:
   virtual CefRefPtr<CefBrowser> GetBrowser() OVERRIDE { return browser_.get(); }
   virtual void VisitDOM(CefRefPtr<CefDOMVisitor> visitor) OVERRIDE;
 
+  virtual void ZoomIn(){ browser_->ZoomIn(this); }
+  virtual void ZoomOut(){ browser_->ZoomOut(this); }
+  virtual void ZoomNormal(){ browser_->ZoomNormal(this); }
 private:
   CefRefPtr<CefBrowserImpl> browser_;
   CefString name_;

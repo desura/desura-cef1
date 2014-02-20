@@ -75,6 +75,7 @@ void BrowserRequestContext::Init(
     const FilePath& cache_path,
     net::HttpCache::Mode cache_mode,
     bool no_proxy) {
+#ifdef OS_WIN // leaving old code here for now as new code is slower in windows
   // Create the |cache_path| directory if necessary.
   bool cache_path_valid = false;
   if (!cache_path.empty()) {
@@ -188,6 +189,92 @@ void BrowserRequestContext::Init(
           file_system_context_.get(),
           CefThread::GetMessageLoopProxyForThread(CefThread::FILE)));
   storage_.set_job_factory(job_factory);
+#else // newer proxy code below here. Not used for Windows yet. 
+  // Create the |cache_path| directory if necessary.
+  bool cache_path_valid = false;
+  if (!cache_path.empty()) {
+    if (file_util::CreateDirectory(cache_path))
+      cache_path_valid = true;
+    else
+      NOTREACHED() << "The cache_path directory could not be created";
+  }
+
+  scoped_refptr<BrowserPersistentCookieStore> persistent_store;
+  if (cache_path_valid) {
+    const FilePath& cookie_path = cache_path.AppendASCII("Cookies");
+    persistent_store = new BrowserPersistentCookieStore(cookie_path);
+  }
+
+  storage_.set_cookie_store(
+      new net::CookieMonster(persistent_store.get(), NULL));
+
+  // hard-code A-L and A-C for test shells
+  set_accept_language("en-us,en");
+  set_accept_charset("iso-8859-1,*,utf-8");
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+  // Use no proxy to avoid ProxyConfigServiceLinux.
+  // Enabling use of the ProxyConfigServiceLinux requires:
+  // -Calling from a thread with a TYPE_UI MessageLoop,
+  // -If at all possible, passing in a pointer to the IO thread's MessageLoop,
+  // -Keep in mind that proxy auto configuration is also
+  //  non-functional on linux in this context because of v8 threading
+  //  issues.
+  // TODO(port): rename "linux" to some nonspecific unix.
+  scoped_ptr<net::ProxyConfigService> proxy_config_service(
+      new net::ProxyConfigServiceFixed(net::ProxyConfig()));
+#else // This is not used for now as it causes significant slowness
+  // Use the system proxy settings.
+  scoped_ptr<net::ProxyConfigService> proxy_config_service(
+      net::ProxyService::CreateSystemProxyConfigService(
+          MessageLoop::current(), NULL));
+#endif
+  storage_.set_host_resolver(
+      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
+                                    NULL));
+  storage_.set_cert_verifier(new net::CertVerifier);
+  storage_.set_proxy_service(net::ProxyService::CreateUsingSystemProxyResolver(
+      proxy_config_service.release(), 0, NULL));
+  storage_.set_ssl_config_service(
+      new net::SSLConfigServiceDefaults);
+
+  storage_.set_http_auth_handler_factory(
+      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
+
+  net::HttpCache::DefaultBackend* backend = new net::HttpCache::DefaultBackend(
+      cache_path.empty() ? net::MEMORY_CACHE : net::DISK_CACHE,
+      cache_path, 0, BrowserResourceLoaderBridge::GetCacheThread());
+
+  net::HttpCache* cache =
+      new net::HttpCache(host_resolver(), cert_verifier(),
+                         origin_bound_cert_service(), NULL, NULL,
+                         proxy_service(), ssl_config_service(),
+                         http_auth_handler_factory(), NULL, NULL, backend);
+
+  cache->set_mode(cache_mode);
+  storage_.set_http_transaction_factory(cache);
+
+  storage_.set_ftp_transaction_factory(
+      new net::FtpNetworkLayer(host_resolver()));
+
+  blob_storage_controller_.reset(new webkit_blob::BlobStorageController());
+  file_system_context_ = static_cast<BrowserFileSystem*>(
+      WebKit::webKitPlatformSupport()->fileSystem())->file_system_context();
+
+  net::URLRequestJobFactory* job_factory = new net::URLRequestJobFactory;
+  job_factory->SetProtocolHandler(
+      "blob",
+      new webkit_blob::BlobProtocolHandler(
+          blob_storage_controller_.get(),
+          CefThread::GetMessageLoopProxyForThread(CefThread::FILE)));
+  job_factory->SetProtocolHandler(
+      "filesystem",
+      fileapi::CreateFileSystemProtocolHandler(
+          file_system_context_.get(),
+          CefThread::GetMessageLoopProxyForThread(CefThread::FILE)));
+  storage_.set_job_factory(job_factory);
+#endif
 }
 
 BrowserRequestContext::~BrowserRequestContext() {

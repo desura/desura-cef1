@@ -18,6 +18,12 @@
 using WebKit::WebRect;
 using WebKit::WebSize;
 
+void BrowserParentDestroyed(GtkWidget *window, CefBrowserImpl* browser)
+{	
+  // Destroy the browser.
+  browser->UIT_DestroyBrowser();
+}
+
 void CefBrowserImpl::ParentWindowWillClose()
 {
   // TODO(port): Implement this method if necessary.
@@ -35,17 +41,20 @@ bool CefBrowserImpl::IsWindowRenderingDisabled()
   return false;
 }
 
-gfx::NativeWindow CefBrowserImpl::UIT_GetMainWndHandle() {
+gfx::NativeView CefBrowserImpl::UIT_GetMainWndHandle() {
   REQUIRE_UIT();
-  GtkWidget* toplevel = gtk_widget_get_ancestor(window_info_.m_Widget,
+  GtkWidget* toplevel = gtk_widget_get_ancestor((GtkWidget*)window_info_.m_Widget,
       GTK_TYPE_WINDOW);
-  return GTK_IS_WINDOW(toplevel) ? GTK_WINDOW(toplevel) : NULL;
+  return GTK_IS_WIDGET(toplevel) ? GTK_WIDGET(toplevel) : NULL;
 }
 
 void CefBrowserImpl::UIT_CreateBrowser(const CefString& url)
 {
   REQUIRE_UIT();
   Lock();
+  
+  if (!settings_.developer_tools_disabled)
+    dev_tools_agent_.reset(new BrowserDevToolsAgent());
 
   // Add a reference that will be released in UIT_DestroyBrowser().
   AddRef();
@@ -53,18 +62,14 @@ void CefBrowserImpl::UIT_CreateBrowser(const CefString& url)
   // Add the new browser to the list maintained by the context
   _Context->AddBrowser(this);
 
-  if (!settings_.developer_tools_disabled)
-    dev_tools_agent_.reset(new BrowserDevToolsAgent());
-
   WebPreferences prefs;
   BrowserToWebSettings(settings_, prefs);
 
   // Create the webview host object
   webviewhost_.reset(
-      WebViewHost::Create(window_info_.m_ParentWidget, gfx::Rect(),
-                          delegate_.get(), NULL, dev_tools_agent_.get(),
-                          prefs));
-
+      WebViewHost::Create((GtkWidget*)window_info_.m_ParentWidget, delegate_.get(), dev_tools_agent_.get(), prefs)
+  );
+  
   if (!settings_.developer_tools_disabled)
     dev_tools_agent_->SetWebView(webviewhost_->webview());
 
@@ -72,12 +77,18 @@ void CefBrowserImpl::UIT_CreateBrowser(const CefString& url)
 
   Unlock();
 
-  if(handler_.get()) {
-    // Notify the handler that we're done creating the new window
-    handler_->HandleAfterCreated(this);
+  g_signal_connect(GTK_WIDGET(window_info_.m_ParentWidget), "destroy", 
+		   G_CALLBACK(BrowserParentDestroyed), this);
+
+  if (client_.get()) {
+    CefRefPtr<CefLifeSpanHandler> handler = client_->GetLifeSpanHandler();
+    if(handler.get()) {
+      // Notify the handler that we're done creating the new window
+      handler->OnAfterCreated(this);
+    }
   }
 
-  if(url.size() > 0)
+  if(url.length() > 0)
     UIT_LoadURL(GetMainFrame(), url);
 }
 
@@ -95,9 +106,38 @@ bool CefBrowserImpl::UIT_ViewDocumentString(WebKit::WebFrame *frame)
 {
   REQUIRE_UIT();
 
-  // TODO(port): Add implementation.
-  NOTIMPLEMENTED();
-  return false;
+  char buff[] = "/tmp/CEFSourceXXXXXX";
+  int fd = mkstemp(buff);
+
+  if (fd == -1)
+    return false;
+
+  FILE* srcOutput;
+  srcOutput = fdopen(fd, "w+");
+
+  if (!srcOutput)
+    return false;
+ 
+  std::string markup = frame->contentAsMarkup().utf8();
+  if (fputs(markup.c_str(), srcOutput) < 0)
+  {
+    fclose(srcOutput);
+	return false;
+  }
+
+  fclose(srcOutput);
+  std::string newName(buff);
+  newName.append(".txt");
+  if (rename(buff, newName.c_str()) != 0)
+    return false;
+
+  std::string openCommand("xdg-open ");
+  openCommand += newName;
+
+  if (system(openCommand.c_str()) != 0)
+    return false;
+
+  return true;
 }
 
 void CefBrowserImpl::UIT_PrintPage(int page_number, int total_pages,
@@ -128,6 +168,26 @@ int CefBrowserImpl::UIT_GetPagesCount(WebKit::WebFrame* frame)
 // static
 void CefBrowserImpl::UIT_CloseView(gfx::NativeView view)
 {
+  if (!view)
+    return;
+    
+  GtkWidget* window = gtk_widget_get_parent(gtk_widget_get_parent(GTK_WIDGET(view)));
+  
+  if (!window)
+    return;
+    
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableFunction(
-      &gtk_widget_destroy, GTK_WIDGET(view)));
+      &gtk_widget_destroy, GTK_WIDGET(window)));
+}
+
+// static
+bool CefBrowserImpl::UIT_IsViewVisible(gfx::NativeView view)
+{
+  if (!view)
+    return false;
+    
+  if (view->window)
+    return (bool)gdk_window_is_visible(view->window);
+  else
+    return false;
 }

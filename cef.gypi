@@ -11,6 +11,7 @@
       }, { # OS!="win"
         'cef_directory' : '<!(echo $CEF_DIRECTORY)',
       }],
-    ]
+    ],
+	'use_system_zlib':0,
   },
 }

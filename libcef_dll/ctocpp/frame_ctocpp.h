@@ -55,6 +55,11 @@ public:
   virtual CefString GetName() OVERRIDE;
   virtual CefString GetURL() OVERRIDE;
   virtual CefRefPtr<CefBrowser> GetBrowser() OVERRIDE;
+#ifndef IGNORE_DESURA
+  virtual void ZoomIn() OVERRIDE;
+  virtual void ZoomOut() OVERRIDE;
+  virtual void ZoomNormal() OVERRIDE;
+#endif
   virtual void VisitDOM(CefRefPtr<CefDOMVisitor> visitor) OVERRIDE;
 };
 

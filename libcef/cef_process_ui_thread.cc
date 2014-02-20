@@ -151,7 +151,11 @@ void CefProcessUIThread::CleanUp() {
   // Flush any remaining messages.  This ensures that any accumulated
   // Task objects get destroyed before we exit, which avoids noise in
   // purify leak-test results.
+  //
+  // On linux this seems to dead lock if its called after gtk has stopped
+#ifndef OS_LINUX
   MessageLoop::current()->RunAllPending();
+#endif
 
   // Destroy the storage context object.
   _Context->set_storage_context(NULL);

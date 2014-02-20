@@ -8,6 +8,7 @@
 #include "cef_thread.h"
 #include "cef_time_util.h"
 #include "cef_process.h"
+#include "cef_paths.h"
 #include "../include/cef_nplugin.h"
 
 #include "base/file_util.h"
@@ -93,6 +94,16 @@ void IOT_VisitCookies(net::CookieMonster* cookie_monster,
       cookie_monster->DeleteCanonicalCookie(cc);
     if (!keepLooping)
       break;
+  }
+}
+
+void UIT_RegisterFlashPlugin(const std::string& dllName)
+{
+  FilePath path;
+
+  // Register the internal Flash and PDF, if available.
+  if (cef::GetFlashPluginPath(&path, dllName.size()>0?dllName.c_str():NULL)) {
+    webkit::npapi::PluginList::Singleton()->AddExtraPluginPath(path);
   }
 }
 
@@ -217,6 +228,12 @@ void CefRunMessageLoop()
   }
 
   _Context->process()->RunMessageLoop();
+}
+
+void CefRegisterFlashPlugin(const std::string& dllName)
+{
+  CefThread::PostTask(CefThread::UI, FROM_HERE,
+      NewRunnableFunction(UIT_RegisterFlashPlugin, dllName));
 }
 
 bool CefRegisterPlugin(const CefPluginInfo& plugin_info)

@@ -42,11 +42,17 @@ BrowserWebKitInit::BrowserWebKitInit() {
   WebKit::WebRuntimeFeatures::enableDeviceMotion(false);
   WebKit::WebRuntimeFeatures::enableDeviceOrientation(false);
 
+#ifdef OS_LINUX
+    // Load only the libraries we want Desura to use
+    media::InitializeMediaLibrary(FilePath("./"));
+    WebKit::WebRuntimeFeatures::enableMediaPlayer(true);
+#else
   // Load libraries for media and enable the media player.
   FilePath module_path;
   WebKit::WebRuntimeFeatures::enableMediaPlayer(
       PathService::Get(base::DIR_MODULE, &module_path) &&
       media::InitializeMediaLibrary(module_path));
+#endif
 
   // Construct and initialize an appcache system for this scope.
   // A new empty temp directory is created to house any cached
