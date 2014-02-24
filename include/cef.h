@@ -1211,7 +1211,8 @@ public:
                                   const CefString& mimeType,
                                   const CefString& fileName,
                                   int64 contentLength,
-                                  CefRefPtr<CefDownloadHandler>& handler)
+                                  CefRefPtr<CefDownloadHandler>& handler,
+								  const CefString& url)
                                   { return false; }
 
   ///

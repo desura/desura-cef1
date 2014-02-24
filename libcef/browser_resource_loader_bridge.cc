@@ -237,9 +237,10 @@ class RequestProxy : public net::URLRequest::Delegate,
               content_disposition, info.charset, "", info.mime_type,
               ASCIIToUTF16("download"));
           CefRefPtr<CefDownloadHandler> dl_handler;
+
           if (handler->GetDownloadHandler(browser_, info.mime_type,
                                           filename, info.content_length,
-                                          dl_handler)) {
+                                          dl_handler, url.spec())) {
             download_handler_ = dl_handler;
           }
         }
