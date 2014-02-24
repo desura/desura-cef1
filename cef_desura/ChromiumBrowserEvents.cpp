@@ -199,7 +199,7 @@ bool RequestHandler::GetDownloadHandler(CefRefPtr<CefBrowser> browser, const Cef
 	std::string strUrl = url;
 	std::string strMimeType = mimeType;
 
-	static_cast<ChormiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onDownloadFile(strUrl.c_str(), strMimeType.c_str(), contentLength);
+	static_cast<ChromiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onDownloadFile(strUrl.c_str(), strMimeType.c_str(), contentLength);
 	return false;
 #else
 	return false;
