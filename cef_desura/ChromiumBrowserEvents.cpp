@@ -18,6 +18,8 @@
 #include "JavaScriptObject.h"
 #include "JavaScriptFactory.h"
 
+extern int g_nApiVersion;
+
 std::map<int, std::string> g_mErrorMsgMap;
 
 class FillMap
@@ -179,6 +181,29 @@ bool RequestHandler::OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<Cef
 		return false;
 
 	return !GetCallback()->onNavigateUrl(url.c_str(), frame->IsMain());
+}
+
+
+bool RequestHandler::GetDownloadHandler(CefRefPtr<CefBrowser> browser, const CefString& mimeType, const CefString& fileName, int64 contentLength, CefRefPtr<CefDownloadHandler>& handler, const CefString& url)
+{
+	if (!GetCallback())
+		return false;
+
+	if (g_nApiVersion <= 1)
+		return false;
+
+#ifdef CHROMIUM_API_SUPPORTS_V2
+	if (GetCallback()->ApiVersion() <= 1)
+		return false;
+
+	std::string strUrl = url;
+	std::string strMimeType = mimeType;
+
+	static_cast<ChormiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onDownloadFile(strUrl.c_str(), strMimeType.c_str(), contentLength);
+	return false;
+#else
+	return false;
+#endif
 }
 
 

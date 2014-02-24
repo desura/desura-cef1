@@ -311,6 +311,7 @@
 		'defines': [
 			'BUILDING_CEF_SHARED',
 			'IGNORE_C_API',
+			'CHROMIUM_API_SUPPORTS_V2',
 		],
 		'include_dirs' : [
 			'.',

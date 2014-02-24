@@ -27,6 +27,10 @@
 	#define DLLINTERFACE __attribute__ ((visibility("default")))
 #endif
 
+#ifdef CHROMIUM_API_SUPPORTS_V2
+#define USE_CHROMIUM_API_V2
+#endif
+
 namespace ChromiumDLL
 {
 	enum KeyEventType
@@ -721,6 +725,30 @@ namespace ChromiumDLL
 
 
 		virtual void HandleJSBinding(JavaScriptObjectI* jsObject, JavaScriptFactoryI* factory)=0;
+
+#ifdef CHROMIUM_API_SUPPORTS_V2
+		virtual int ApiVersion()
+		{
+			return 1;
+		}
+#endif
+	};
+
+	class ChromiumBrowserEventI_V2 : public ChromiumBrowserEventI
+	{
+	public:
+		virtual int ApiVersion()
+		{
+			return 2;
+		}
+
+		//! Callback when a file wants to be downloaded
+		//!
+		//! @param szUrl Full url to file
+		//! @param szMimeType Mime Type of file provided by server
+		//! @param ullFileSize Download file size, will be -1 if unknown
+		//!
+		virtual void onDownloadFile(const char* szUrl, const char* szMimeType, unsigned long long ullFileSize)=0;
 	};
 
 	enum KeyType
@@ -821,6 +849,8 @@ namespace ChromiumDLL
 #ifdef WIN32
 extern "C"
 {
+	DLLINTERFACE void CEF_SetApiVersion(int nVersion);
+
 	DLLINTERFACE void CEF_DoMsgLoop();
 	DLLINTERFACE bool CEF_Init(bool threaded, const char* cachePath, const char* logPath, const char* userAgent);
 	DLLINTERFACE void CEF_Stop();

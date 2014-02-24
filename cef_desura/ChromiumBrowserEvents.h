@@ -64,6 +64,7 @@ class RequestHandler : public CefRequestHandler, public virtual ChromiumEventInf
 {
 public:
 	virtual bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, NavType navType, bool isRedirect);
+	virtual bool GetDownloadHandler(CefRefPtr<CefBrowser> browser, const CefString& mimeType, const CefString& fileName, int64 contentLength, CefRefPtr<CefDownloadHandler>& handler, const CefString& url);
 };
 
 

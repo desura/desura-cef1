@@ -29,6 +29,8 @@
 	#define NIX64 1
 #endif
 
+int g_nApiVersion = 1;
+
 ChromiumDLL::LogMessageHandlerFn g_pLogHandler = NULL;
 
 bool logHandler(int level, const std::string& msg)
@@ -49,6 +51,14 @@ static void gtkFocus(GtkWidget *widget, GdkEvent *event, ChromiumBrowser *data)
 
 extern "C"
 {
+	DLLINTERFACE void CEF_SetApiVersion(int version)
+	{
+		if (version <= 0)
+			g_nApiVersion = 1;
+		else
+			g_nApiVersion = version;
+	}
+
 	DLLINTERFACE void CEF_DoMsgLoop()
 	{
 		CefDoMessageLoopWork();
