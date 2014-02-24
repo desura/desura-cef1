@@ -60,9 +60,7 @@ if sys.platform.startswith("win"):
 		'-I', 'cef.gypi',
 		'-Dwerror=',
 		'-Dchromium_win_pch=1',
-		'-Dmsvs_multi_core_compile=1',
-		'-Dproprietary_codecs=1',
-		'-Dffmpeg_branding=Desura']
+		'-Dmsvs_multi_core_compile=1']
 else:
 	gyper = [ 'python', 'tools/gyp_cef', 'cef.gyp',
 		'-I', 'cef.gypi',
