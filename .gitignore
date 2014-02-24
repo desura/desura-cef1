@@ -1,0 +1,5 @@
+Debug/
+bin/
+*.sln
+*.vcproj
+*.pyc
