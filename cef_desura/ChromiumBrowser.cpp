@@ -638,6 +638,8 @@ void ChromiumBrowser::setContext(CefRefPtr<CefV8Context> context)
 
 ChromiumRenderer::ChromiumRenderer(WIN_HANDLE handle, const char* defaultUrl, int width, int height)
 	: ChromiumBrowser(handle)
+	, m_nDefaultWidth(width)
+	, m_nDefaultHeight(height)
 {
 	init(defaultUrl, true, width, height);
 }
@@ -646,6 +648,12 @@ void ChromiumRenderer::setWindowSize(int width, int height)
 {
 	if (m_pBrowser)
 		m_pBrowser->SetSize(PET_VIEW, width, height);
+}
+
+void ChromiumRenderer::getWindowSize(int &width, int &height)
+{
+	if (m_pBrowser)
+		m_pBrowser->GetSize(PET_VIEW, width, height);
 }
 
 void ChromiumRenderer::renderToBuffer(void* pBuffer, unsigned int width, unsigned int height)
@@ -682,4 +690,10 @@ void ChromiumRenderer::onCaptureLost()
 {
 	if (m_pBrowser)
 		m_pBrowser->SendCaptureLostEvent();
+}
+
+void ChromiumRenderer::setBrowser(CefBrowser* browser)
+{
+	ChromiumBrowser::setBrowser(browser);
+	setWindowSize(m_nDefaultWidth, m_nDefaultHeight);
 }

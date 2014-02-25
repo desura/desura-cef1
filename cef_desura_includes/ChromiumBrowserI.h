@@ -820,6 +820,7 @@ namespace ChromiumDLL
 	{
 	public:
 		virtual void setWindowSize(int width, int height)=0;
+		virtual void getWindowSize(int &width, int &height)=0;
 
 		virtual void renderToBuffer(void* pBuffer, unsigned int width, unsigned int height)=0;
 
