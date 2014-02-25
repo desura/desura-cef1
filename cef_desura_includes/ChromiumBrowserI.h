@@ -842,36 +842,43 @@ namespace ChromiumDLL
 		virtual void destroy()=0;
 		virtual void run()=0;
 	};
-}
 
+	class ChromiumControllerI
+	{
+	public:
+		//Gets the max api version this dll supports
+		virtual int GetMaxApiVersion()=0;
+
+		//Sets the api version the client supports
+		virtual void SetApiVersion(int nVersion)=0;
+
+		virtual void DoMsgLoop()=0;
+		virtual void Stop()=0;
+
+		virtual bool RegisterJSExtender(JavaScriptExtenderI* extender)=0;
+		virtual bool RegisterSchemeExtender(SchemeExtenderI* extender)=0;
+
+		virtual void DeleteCookie(const char* url, const char* name)=0;
+		virtual CookieI* CreateCookie()=0;
+		virtual void SetCookie(const char* ulr, CookieI* cookie)=0;
+
+		// Form handle as HWND
+		virtual ChromiumBrowserI* NewChromiumBrowser(int* formHandle, const char *name,  const char* defaultUrl)=0;
+
+		//Creates a offscreen browser renderer
+		virtual ChromiumRendererI* NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height)=0;
+
+		// Return true to handle msg
+		virtual void SetLogHandler(LogMessageHandlerFn logFn)=0;
+		virtual void PostCallback(CallbackI* callback)=0;
+	};
+}
 
 #ifndef CEF_IGNORE_FUNCTIONS 
 #ifdef WIN32
 extern "C"
-{
-	DLLINTERFACE void CEF_SetApiVersion(int nVersion);
-
-	DLLINTERFACE void CEF_DoMsgLoop();
-	DLLINTERFACE bool CEF_Init(bool threaded, const char* cachePath, const char* logPath, const char* userAgent);
-	DLLINTERFACE void CEF_Stop();
-
-	DLLINTERFACE bool CEF_RegisterJSExtender(ChromiumDLL::JavaScriptExtenderI* extender);
-	DLLINTERFACE bool CEF_RegisterSchemeExtender(ChromiumDLL::SchemeExtenderI* extender);
-
-	DLLINTERFACE void CEF_DeleteCookie(const char* url, const char* name);
-	DLLINTERFACE ChromiumDLL::CookieI* CEF_CreateCookie();
-	DLLINTERFACE void CEF_SetCookie(const char* ulr, ChromiumDLL::CookieI* cookie);
-
-	// Form handle as HWND
-	DLLINTERFACE ChromiumDLL::ChromiumBrowserI* CEF_NewChromiumBrowser(int* formHandle, const char *name,  const char* defaultUrl);
-
-	//Creates a offscreen browser renderer
-	DLLINTERFACE ChromiumDLL::ChromiumRendererI* CEF_NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height);
-
-	// Return true to handle msg
-	DLLINTERFACE void CEF_SetLogHandler(ChromiumDLL::LogMessageHandlerFn logFn);
-
-	DLLINTERFACE void CEF_PostCallback(ChromiumDLL::CallbackI* callback);
+{	
+	DLLINTERFACE ChromiumDLL::ChromiumControllerI* CEF_InitEx(bool threaded, const char* cachePath, const char* logPath, const char* userAgent);
 }
 #endif // TODO LINUX
 #endif

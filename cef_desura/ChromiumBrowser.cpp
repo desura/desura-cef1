@@ -49,9 +49,24 @@ static void gtkFocus(GtkWidget *widget, GdkEvent *event, ChromiumBrowser *data)
 }
 #endif
 
-extern "C"
+extern void CEF_DeleteCookie_Internal(const char* url, const char* name);
+extern ChromiumDLL::CookieI* CEF_CreateCookie_Internal();
+extern void CEF_SetCookie_Internal(const char* url, ChromiumDLL::CookieI* cookie);
+
+class ChromiumController : public ChromiumDLL::ChromiumControllerI
 {
-	DLLINTERFACE void CEF_SetApiVersion(int version)
+public:
+	ChromiumController()
+		: m_bInit(false)
+	{
+	}
+
+	virtual int GetMaxApiVersion()
+	{
+		return 2;
+	}
+
+	virtual void SetApiVersion(int version)
 	{
 		if (version <= 0)
 			g_nApiVersion = 1;
@@ -59,21 +74,73 @@ extern "C"
 			g_nApiVersion = version;
 	}
 
-	DLLINTERFACE void CEF_DoMsgLoop()
+	virtual void DoMsgLoop()
 	{
 		CefDoMessageLoopWork();
 	}
 
-	DLLINTERFACE bool CEF_Init(bool threaded, const char* cachePath, const char* logPath, const char* userAgent)
+	virtual void Stop()
 	{
-		CefSettings settings;
+		CefShutdown();
+	}
 
+	virtual bool RegisterJSExtender(ChromiumDLL::JavaScriptExtenderI* extender)
+	{
+		return JavaScriptExtender::Register(extender);
+	}
+
+	virtual bool RegisterSchemeExtender(ChromiumDLL::SchemeExtenderI* extender)
+	{
+		return SchemeExtender::Register(extender);
+	}
+
+	virtual ChromiumDLL::ChromiumBrowserI* NewChromiumBrowser(int* formHandle, const char* name, const char* defaultUrl)
+	{
+		return new ChromiumBrowser((WIN_HANDLE)formHandle, defaultUrl);
+	}
+
+	virtual ChromiumDLL::ChromiumRendererI* NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height)
+	{
+		return new ChromiumRenderer((WIN_HANDLE)formHandle, defaultUrl, width, height);
+	}
+	
+	virtual void SetLogHandler(ChromiumDLL::LogMessageHandlerFn logFn)
+	{
+		g_pLogHandler = logFn;
+	}
+
+	virtual void PostCallback(ChromiumDLL::CallbackI* callback)
+	{
+		CefPostTask(TID_UI, CefRefPtr<CefTask>(new TaskWrapper(callback)));
+	}
+
+	virtual void DeleteCookie(const char* url, const char* name)
+	{
+		CEF_DeleteCookie_Internal(url, name);
+	}
+
+	virtual ChromiumDLL::CookieI* CreateCookie()
+	{
+		return CEF_CreateCookie_Internal();
+	}
+
+	virtual void SetCookie(const char* url, ChromiumDLL::CookieI* cookie)
+	{
+		CEF_SetCookie_Internal(url, cookie);
+	}
+
+
+	bool Init(bool threaded, const char* cachePath, const char* logPath, const char* userAgent)
+	{
+		if (m_bInit)
+			return true;
+
+		CefSettings settings;
 
 		cef_string_copy(cachePath, strlen(cachePath), &settings.cache_path);
 		cef_string_copy(userAgent, strlen(userAgent), &settings.user_agent);
 
 		settings.multi_threaded_message_loop = threaded;
-
 
 		if (!CefInitialize(settings))
 			return false;
@@ -81,45 +148,26 @@ extern "C"
 #if defined(_WIN32)
 		CefRegisterFlashPlugin("gcswf32.dll");
 #else
-	CefRegisterFlashPlugin("libdesura_flashwrapper.so");
+		CefRegisterFlashPlugin("libdesura_flashwrapper.so");
 #endif
 
+		m_bInit = true;
 		return true;
 	}
 
-	DLLINTERFACE void CEF_Stop()
-	{
-		CefShutdown();
-	}
+	bool m_bInit;
+};
 
-	DLLINTERFACE bool CEF_RegisterJSExtender(ChromiumDLL::JavaScriptExtenderI* extender)
-	{
-		return JavaScriptExtender::Register(extender);
-	}
+ChromiumController* g_Controller = new ChromiumController();
 
-	DLLINTERFACE bool CEF_RegisterSchemeExtender(ChromiumDLL::SchemeExtenderI* extender)
+extern "C"
+{
+	DLLINTERFACE ChromiumDLL::ChromiumControllerI* CEF_InitEx(bool threaded, const char* cachePath, const char* logPath, const char* userAgent)
 	{
-		return SchemeExtender::Register(extender);
-	}
+		if (g_Controller->Init(threaded, cachePath, logPath, userAgent))
+			return g_Controller;
 
-	DLLINTERFACE ChromiumDLL::ChromiumBrowserI* CEF_NewChromiumBrowser(int* formHandle, const char* name, const char* defaultUrl)
-	{
-		return new ChromiumBrowser((WIN_HANDLE)formHandle, defaultUrl);
-	}
-
-	DLLINTERFACE ChromiumDLL::ChromiumRendererI* CEF_NewChromiumRenderer(int* formHandle, const char* defaultUrl, int width, int height)
-	{
-		return new ChromiumRenderer((WIN_HANDLE)formHandle, defaultUrl, width, height);
-	}
-	
-	DLLINTERFACE void CEF_SetLogHandler(ChromiumDLL::LogMessageHandlerFn logFn)
-	{
-		g_pLogHandler = logFn;
-	}
-
-	DLLINTERFACE void CEF_PostCallback(ChromiumDLL::CallbackI* callback)
-	{
-		CefPostTask(TID_UI, CefRefPtr<CefTask>(new TaskWrapper(callback)));
+		return NULL;
 	}
 }
 

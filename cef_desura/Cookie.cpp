@@ -89,25 +89,24 @@ public:
 	CefCookie m_szCookie;
 };
 
-extern "C"
+
+void CEF_DeleteCookie_Internal(const char* url, const char* name)
 {
-	DLLINTERFACE void CEF_DeleteCookie(const char* url, const char* name)
-	{
-		CefPostTask(TID_IO, new CookieTask(url, name));
-	}
-
-	DLLINTERFACE ChromiumDLL::CookieI* CEF_CreateCookie()
-	{
-		return new Cookie();
-	}
-
-	DLLINTERFACE void CEF_SetCookie(const char* url, ChromiumDLL::CookieI* cookie)
-	{
-		Cookie* c = (Cookie*)cookie;
-
-		if (!c)
-			return;
-
-		CefPostTask(TID_IO, new CookieTask(url, c->m_rCookie));
-	}
+	CefPostTask(TID_IO, new CookieTask(url, name));
 }
+
+ChromiumDLL::CookieI* CEF_CreateCookie_Internal()
+{
+	return new Cookie();
+}
+
+void CEF_SetCookie_Internal(const char* url, ChromiumDLL::CookieI* cookie)
+{
+	Cookie* c = (Cookie*)cookie;
+
+	if (!c)
+		return;
+
+	CefPostTask(TID_IO, new CookieTask(url, c->m_rCookie));
+}
+
