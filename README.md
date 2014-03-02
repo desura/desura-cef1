@@ -1,6 +1,29 @@
 desura-cef1
 ===========
 
+Build on Linux
+===========
+
+Note that Linux build is not yet working.
+
+PreReq:
+----------
+
+ * GYP
+
+Building:
+----------
+
+Run the script:
+
+    sh build_cef1.sh
+
+Output should be:
+ * libcef_desura.so
+
+Build on Windows
+===========
+
 PreReq:
 ----------
 
@@ -30,3 +53,7 @@ Output should be:
  * zlibwapi.dll
  * cef_resources.pak
  
+Closing Remarks
+=====================
+
+If you need help, want to give some suggestions or just want to talk, feel free to join our IRC channel #desura on irc.freenode.net.
