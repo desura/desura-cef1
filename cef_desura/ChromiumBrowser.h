@@ -118,6 +118,7 @@ public:
 	virtual void setWindowSize(int width, int height);
 	virtual void getWindowSize(int &width, int &height);
 
+	virtual void renderRectToBuffer(void *pBuffer, unsigned int x, unsigned int y, unsigned int w, unsigned h);
 	virtual void renderToBuffer(void* pBuffer, unsigned int width, unsigned int height);
 
 	virtual void onMouseClick(int x, int y, ChromiumDLL::MouseButtonType type, bool mouseUp, int clickCount);
@@ -132,7 +133,13 @@ public:
 		return this;
 	}
 
+	virtual void destroy()
+	{
+		delete this;
+	}
+
 	virtual void setBrowser(CefBrowser* browser);
+	virtual void setEventCallback(ChromiumDLL::ChromiumRendererEventI* cbe);
 
 private:
 	int m_nDefaultWidth;

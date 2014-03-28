@@ -219,6 +219,59 @@ bool DisplayHandler::OnConsoleMessage(CefRefPtr<CefBrowser> browser, const CefSt
 	return true;
 }
 
+void DisplayHandler::OnStatusMessage(CefRefPtr<CefBrowser> browser, const CefString& value, StatusType type)
+{
+	if (!GetCallback())
+		return;
+
+	if (g_nApiVersion <= 1)
+		return;
+
+#ifdef CHROMIUM_API_SUPPORTS_V2
+	if (GetCallback()->ApiVersion() <= 1)
+		return;
+
+	std::string strText = value;
+	static_cast<ChromiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onStatus(strText.c_str(), (ChromiumDLL::StatusType)type);
+#endif
+}
+
+void DisplayHandler::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title)
+{
+	if (!GetCallback())
+		return;
+
+	if (g_nApiVersion <= 1)
+		return;
+
+#ifdef CHROMIUM_API_SUPPORTS_V2
+	if (GetCallback()->ApiVersion() <= 1)
+		return;
+
+	std::string strText = title;
+	static_cast<ChromiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onTitle(strText.c_str());
+#endif
+}
+
+bool DisplayHandler::OnTooltip(CefRefPtr<CefBrowser> browser, CefString& text)
+{
+	if (!GetCallback())
+		return false;
+
+	if (g_nApiVersion <= 1)
+		return false;
+
+#ifdef CHROMIUM_API_SUPPORTS_V2
+	if (GetCallback()->ApiVersion() <= 1)
+		return false;
+
+	std::string strText = text;
+	return static_cast<ChromiumDLL::ChromiumBrowserEventI_V2*>(GetCallback())->onToolTip(strText.c_str());
+#else
+	return false;
+#endif
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /// KeyboardHandler
@@ -320,6 +373,32 @@ void WinEventHandler::OnWndProc(CefRefPtr<CefBrowser> browser, int message, int 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
+/// RenderHandler
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void RenderHandler::OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, const CefRect& dirtyRect, const void* buffer)
+{
+	if (GetRenderCallback() && type == PET_VIEW)
+		GetRenderCallback()->onPaint(dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height, buffer);
+}
+
+void RenderHandler::OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor)
+{
+#ifdef _WIN32
+	static HCURSOR s_Hand = LoadCursor(NULL, MAKEINTRESOURCE(IDC_HAND));
+
+	ChromiumDLL::eCursor ec = ChromiumDLL::CURSOR_NORMAL;
+
+	if (cursor == s_Hand)
+		ec = ChromiumDLL::CURSOR_HAND;
+
+	if (GetRenderCallback())
+		GetRenderCallback()->onCursorChange(ec);
+#endif
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
 /// ChromiumBrowserEvents
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -327,11 +406,17 @@ ChromiumBrowserEvents::ChromiumBrowserEvents(ChromiumBrowser* pParent)
 {
 	m_pParent = pParent;
 	m_pEventCallBack = NULL;
+	m_pRendereEventCallBack = NULL;
 }
 
 void ChromiumBrowserEvents::setCallBack(ChromiumDLL::ChromiumBrowserEventI* cbe)
 {
 	m_pEventCallBack = cbe;
+}
+
+void ChromiumBrowserEvents::setCallBack(ChromiumDLL::ChromiumRendererEventI* cbe)
+{
+	m_pRendereEventCallBack = cbe;
 }
 
 void ChromiumBrowserEvents::setParent(ChromiumBrowser* parent)
@@ -342,6 +427,11 @@ void ChromiumBrowserEvents::setParent(ChromiumBrowser* parent)
 ChromiumDLL::ChromiumBrowserEventI* ChromiumBrowserEvents::GetCallback()
 {
 	return m_pEventCallBack;
+}
+
+ChromiumDLL::ChromiumRendererEventI* ChromiumBrowserEvents::GetRenderCallback()
+{
+	return m_pRendereEventCallBack;
 }
 
 void ChromiumBrowserEvents::SetBrowser(CefRefPtr<CefBrowser> browser)

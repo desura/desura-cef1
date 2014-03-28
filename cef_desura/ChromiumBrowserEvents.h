@@ -25,6 +25,7 @@ class ChromiumEventInfoI
 {
 public:
 	virtual ChromiumDLL::ChromiumBrowserEventI* GetCallback()=0;
+	virtual ChromiumDLL::ChromiumRendererEventI* GetRenderCallback()=0;
 	virtual void SetBrowser(CefRefPtr<CefBrowser> browser)=0;
 	virtual CefRefPtr<CefBrowser> GetBrowser()=0;
 	virtual void setContext(CefRefPtr<CefV8Context> context)=0;
@@ -76,6 +77,9 @@ class DisplayHandler : public CefDisplayHandler, public virtual ChromiumEventInf
 {
 public:
 	virtual bool OnConsoleMessage(CefRefPtr<CefBrowser> browser, const CefString& message, const CefString& source, int line);
+	virtual void OnStatusMessage(CefRefPtr<CefBrowser> browser, const CefString& value, StatusType type);
+	virtual void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title);
+	virtual bool OnTooltip(CefRefPtr<CefBrowser> browser, CefString& text);
 };
 
 
@@ -132,6 +136,16 @@ public:
 	virtual void OnWndProc(CefRefPtr<CefBrowser> browser, int message, int wparam, int lparam);
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/// RenderHandler
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+class RenderHandler : public CefRenderHandler, public virtual ChromiumEventInfoI
+{
+public:
+	virtual void OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, const CefRect& dirtyRect, const void* buffer);
+	virtual void OnCursorChange(CefRefPtr<CefBrowser> browser, CefCursorHandle cursor);
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /// ChromiumBrowserEvents
@@ -149,14 +163,19 @@ class ChromiumBrowserEvents :
 	, public JSDialogHandler
 	, public JSBindingHandler
 	, public WinEventHandler
+	, public RenderHandler
 {
 public:
 	ChromiumBrowserEvents(ChromiumBrowser* pParent);
 
 	void setCallBack(ChromiumDLL::ChromiumBrowserEventI* cbe);
+	void setCallBack(ChromiumDLL::ChromiumRendererEventI* cbe);
+
 	void setParent(ChromiumBrowser* parent);
 
 	virtual ChromiumDLL::ChromiumBrowserEventI* GetCallback();
+	virtual ChromiumDLL::ChromiumRendererEventI* GetRenderCallback();
+
 	virtual void SetBrowser(CefRefPtr<CefBrowser> browser);
 	virtual CefRefPtr<CefBrowser> GetBrowser();
 	virtual void setContext(CefRefPtr<CefV8Context> context);
@@ -170,11 +189,13 @@ public:
 	virtual CefRefPtr<CefJSDialogHandler>	GetJSDialogHandler()	{ return (CefJSDialogHandler*)this; }
 	virtual CefRefPtr<CefJSBindingHandler>	GetJSBindingHandler()	{ return (CefJSBindingHandler*)this; }
 	virtual CefRefPtr<CefWinEventHandler>	GetWinEventHandler()	{ return (CefWinEventHandler*)this; }
+	virtual CefRefPtr<CefRenderHandler>		GetRenderHandler()		{ return (RenderHandler*)this; }
 
 private:
 	CefRefPtr<CefBrowser> m_Browser;
 	ChromiumBrowser* m_pParent;
-	ChromiumDLL::ChromiumBrowserEventI *m_pEventCallBack;
+	ChromiumDLL::ChromiumBrowserEventI* m_pEventCallBack;
+	ChromiumDLL::ChromiumRendererEventI* m_pRendereEventCallBack;
 
 	IMPLEMENT_REFCOUNTING(ChromiumBrowserEvents);
 };

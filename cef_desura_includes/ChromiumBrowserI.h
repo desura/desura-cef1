@@ -734,6 +734,13 @@ namespace ChromiumDLL
 #endif
 	};
 
+	enum StatusType
+	{
+		STATUSTYPE_TEXT = 0,
+		STATUSTYPE_MOUSEOVER_URL,
+		STATUSTYPE_KEYBOARD_FOCUS_URL,
+	};
+
 	class ChromiumBrowserEventI_V2 : public ChromiumBrowserEventI
 	{
 	public:
@@ -749,6 +756,13 @@ namespace ChromiumDLL
 		//! @param ullFileSize Download file size, will be -1 if unknown
 		//!
 		virtual void onDownloadFile(const char* szUrl, const char* szMimeType, unsigned long long ullFileSize)=0;
+
+		virtual void onStatus(const char* szStatus, StatusType eType)=0;
+
+		virtual void onTitle(const char* szTitle)=0;
+
+		//! Return false to show default tool tip
+		virtual bool onToolTip(const char* szToolTop)=0;
 	};
 
 	enum KeyType
@@ -816,12 +830,41 @@ namespace ChromiumDLL
 		virtual ChromiumDLL::JavaScriptContextI* getJSContext()=0;
 	};
 
+	enum eCursor
+	{
+		CURSOR_NORMAL,
+		CURSOR_HAND,
+	};
+
+	class ChromiumRendererEventI 
+	{
+	public:
+		virtual int apiVersion()
+		{
+			return 1;
+		}
+
+		//! Callback when a section of the page needs to be redrawn
+		//!
+		virtual void onInvalidateRect(unsigned int x, unsigned int y, unsigned int w, unsigned int h)=0;
+
+		virtual void onPaint(unsigned int x, unsigned int y, unsigned int w, unsigned int h, const void* buffer)=0;
+
+		virtual void onCursorChange(eCursor cursor)=0;
+
+	protected:
+		virtual ~ChromiumRendererEventI(){}
+	};
+
 	class ChromiumRendererI
 	{
 	public:
+		virtual void destroy()=0;
+
 		virtual void setWindowSize(int width, int height)=0;
 		virtual void getWindowSize(int &width, int &height)=0;
 
+		virtual void renderRectToBuffer(void *pBuffer, unsigned int x, unsigned int y, unsigned int w, unsigned h)=0;
 		virtual void renderToBuffer(void* pBuffer, unsigned int width, unsigned int height)=0;
 
 		virtual void onMouseClick(int x, int y, MouseButtonType type, bool mouseUp, int clickCount)=0;
@@ -832,6 +875,11 @@ namespace ChromiumDLL
 		virtual void onCaptureLost()=0;
 
 		virtual ChromiumBrowserI* getBrowser()=0;
+
+		virtual void setEventCallback(ChromiumRendererEventI* cbe)=0;
+
+	protected:
+		virtual ~ChromiumRendererI(){}
 	};
 
 
